@@ -1,0 +1,46 @@
+name: Build
+
+on:
+  push:
+    paths-ignore:
+      - docs/**
+      - .git*
+      - LICENSE
+  workflow_dispatch:
+
+jobs:
+  build:
+    name: Build
+    runs-on: windows-latest
+    steps:
+
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Add msbuild to PATH
+        uses: microsoft/setup-msbuild@v1
+        with:
+          msbuild-architecture: x86
+
+      - name: Cache NuGet packages
+        uses: actions/cache@v3
+        id: cache
+        with:
+          path: packages
+          key: ${{ hashFiles('HuaweiUnlock\packages.config') }}
+
+      - name: MSBuild
+        run: |
+          if ("${{ steps.cache.outputs.cache-hit }}" -ne "true") { nuget restore }
+          MSBuild .\HuaweiUnlock.sln /p:Configuration=Debug /p:Platform="x86" /p:RunCodeAnalysis=false
+          Write-Output "version=Ver.$(Get-Content -Path .\HuaweiUnlock\Properties\AssemblyInfo.cs | Select-String -Pattern AssemblyVersion | Out-String -Stream | ?{ $_ -ne '' } | %{ $_.Split('"')[1] })" | Out-File -FilePath $Env:GITHUB_ENV -Encoding UTF8 -Append
+          Write-Output "commit=$(foreach ($line in '${{ github.sha }}') { ($line[0..6] | foreach { [char]$_ }) -join '' })" | Out-File -FilePath $Env:GITHUB_ENV -Encoding UTF8 -Append
+
+      - name: Upload built artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: Huawei-Unlock-Tool(${{ env.version }}@${{ env.commit }})
+          path: HuaweiUnlock\bin\Debug
+          if-no-files-found: error
