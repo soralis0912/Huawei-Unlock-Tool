@@ -1,0 +1,11 @@
+* text=auto eol=crlf
+
+.git* text eol=lf
+
+*.exe binary
+*.dll binary
+*.img binary
+
+*.cs diff=csharp
+
+*.ico binary
